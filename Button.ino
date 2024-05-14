@@ -1,5 +1,20 @@
 #include <TFUsbMidi.h>
 
+// Define the pins for the three buttons
+const int button1Pin = 2;
+const int button2Pin = 3;
+const int button3Pin = 4;
+
+// Define the MIDI Note numbers for the buttons
+const int note1 = 60; // Middle C
+const int note2 = 62; // D
+const int note3 = 64; // E
+
+// Track button states to detect changes
+bool button1State = false;
+bool button2State = false;
+bool button3State = false;
+
 // Function declaration for MIDI message callback
 void OnMidiMessage(TFMidiMessage msg);
 
@@ -14,43 +29,52 @@ void setup() {
     // Begin VUSB MIDI
     Serial.println("VUSB begin");
     VUsbMidi.begin(false);
-}
 
-unsigned long nextSendTime = 0;
+    // Initialize button pins
+    pinMode(button1Pin, INPUT_PULLUP);
+    pinMode(button2Pin, INPUT_PULLUP);
+    pinMode(button3Pin, INPUT_PULLUP);
+}
 
 void loop() {
     // Watch for incoming MIDI packets
     VUsbMidi.refresh();
-  
-    // Send MIDI messages every 5 seconds
-    if (millis() >= nextSendTime) {
-        // Send Note On message: channel 1, note 60, velocity 100
-        VUsbMidi.NoteOn(1, 60, 100);
-        delay(200);
-        // Send Note Off message: channel 1, note 60
-        VUsbMidi.NoteOff(1, 60);
-        // Send Control Change message: channel 2, controller 10, value 54
-        VUsbMidi.ControlChange(2, 10, 54);
-        
-        // Send raw MIDI message (version 1)
-        TFMidiMessage midimsg;
-        midimsg.type = TFMidiType::NoteOn;
-        midimsg.channel = 1;
-        midimsg.data1 = 60; // note
-        midimsg.data2 = 50; // velocity
-        VUsbMidi.write(midimsg);
-        
-        // Send raw MIDI message (version 2) using byte buffer
-        byte buffer[4];
-        buffer[0] = 0x09; // USB MIDI Cable Number and Code Index Number
-        buffer[1] = 0x90 | 1; // Note On message type and channel 1
-        buffer[2] = 30 & 0x7F; // note (limited to 7 bits)
-        buffer[3] = 50 & 0x7F; // velocity (limited to 7 bits)
-        VUsbMidi.write(buffer, 4);
 
-        // Set the next send time to 5 seconds from now
-        nextSendTime = millis() + 5000;
+    // Read button states
+    bool newButton1State = digitalRead(button1Pin) == LOW;
+    bool newButton2State = digitalRead(button2Pin) == LOW;
+    bool newButton3State = digitalRead(button3Pin) == LOW;
+
+    // Send MIDI Note messages based on button states
+    if (newButton1State != button1State) {
+        button1State = newButton1State;
+        if (button1State) {
+            VUsbMidi.NoteOn(1, note1, 127);
+        } else {
+            VUsbMidi.NoteOff(1, note1);
+        }
     }
+
+    if (newButton2State != button2State) {
+        button2State = newButton2State;
+        if (button2State) {
+            VUsbMidi.NoteOn(1, note2, 127);
+        } else {
+            VUsbMidi.NoteOff(1, note2);
+        }
+    }
+
+    if (newButton3State != button3State) {
+        button3State = newButton3State;
+        if (button3State) {
+            VUsbMidi.NoteOn(1, note3, 127);
+        } else {
+            VUsbMidi.NoteOff(1, note3);
+        }
+    }
+
+    // Small delay to prevent overwhelming the MIDI output
+    delay(10);
 }
 
 // Callback function to handle incoming MIDI messages
